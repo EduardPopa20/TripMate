@@ -11,6 +11,3 @@ readme.md
 
 # SQL files
 *.sql
-
-# Environment examples
-.env.example
