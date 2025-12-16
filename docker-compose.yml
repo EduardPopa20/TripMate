@@ -1,0 +1,226 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: tripmate-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - tripmate-network
+    restart: unless-stopped
+
+  trip-service:
+    build:
+      context: ./services/trip-service
+      dockerfile: Dockerfile
+    container_name: tripmate-trip-service
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - NODE_ENV=production
+      - SERVICE_NAME=trip-service
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - LOG_LEVEL=info
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - tripmate-network
+    restart: unless-stopped
+
+  itinerary-service:
+    build:
+      context: ./services/itinerary-service
+      dockerfile: Dockerfile
+    container_name: tripmate-itinerary-service
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - NODE_ENV=production
+      - SERVICE_NAME=itinerary-service
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - LOG_LEVEL=info
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - tripmate-network
+    restart: unless-stopped
+
+  budget-service:
+    build:
+      context: ./services/budget-service
+      dockerfile: Dockerfile
+    container_name: tripmate-budget-service
+    ports:
+      - "3003:3003"
+    environment:
+      - PORT=3003
+      - NODE_ENV=production
+      - SERVICE_NAME=budget-service
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - CURRENCY_SERVICE_URL=http://currency-service:3006
+      - LOG_LEVEL=info
+    depends_on:
+      - currency-service
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3003/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - tripmate-network
+    restart: unless-stopped
+
+  weather-service:
+    build:
+      context: ./services/weather-service
+      dockerfile: Dockerfile
+    container_name: tripmate-weather-service
+    ports:
+      - "3004:3004"
+    environment:
+      - PORT=3004
+      - NODE_ENV=production
+      - SERVICE_NAME=weather-service
+      - OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - LOG_LEVEL=info
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3004/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - tripmate-network
+    restart: unless-stopped
+
+  places-service:
+    build:
+      context: ./services/places-service
+      dockerfile: Dockerfile
+    container_name: tripmate-places-service
+    ports:
+      - "3005:3005"
+    environment:
+      - PORT=3005
+      - NODE_ENV=production
+      - SERVICE_NAME=places-service
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - LOG_LEVEL=info
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3005/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - tripmate-network
+    restart: unless-stopped
+
+  currency-service:
+    build:
+      context: ./services/currency-service
+      dockerfile: Dockerfile
+    container_name: tripmate-currency-service
+    ports:
+      - "3006:3006"
+    environment:
+      - PORT=3006
+      - NODE_ENV=production
+      - SERVICE_NAME=currency-service
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - LOG_LEVEL=info
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3006/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - tripmate-network
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    container_name: tripmate-api-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      - SERVICE_NAME=api-gateway
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - TRIP_SERVICE_URL=http://trip-service:3001
+      - ITINERARY_SERVICE_URL=http://itinerary-service:3002
+      - BUDGET_SERVICE_URL=http://budget-service:3003
+      - WEATHER_SERVICE_URL=http://weather-service:3004
+      - PLACES_SERVICE_URL=http://places-service:3005
+      - CURRENCY_SERVICE_URL=http://currency-service:3006
+      - CORS_ORIGIN=http://localhost:5173
+      - RATE_LIMIT_WINDOW_MS=900000
+      - RATE_LIMIT_MAX_REQUESTS=100
+      - LOG_LEVEL=info
+    depends_on:
+      - trip-service
+      - itinerary-service
+      - budget-service
+      - weather-service
+      - places-service
+      - currency-service
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - tripmate-network
+    restart: unless-stopped
+
+networks:
+  tripmate-network:
+    driver: bridge
+    name: tripmate-network
+
+volumes:
+  redis_data:
+    driver: local
+    name: tripmate-redis-data

@@ -1,1 +1,17 @@
-*.md
+*.md.env
+services/*/.env
+
+# Environment files
+.env
+services/*/.env
+shared/.env
+
+# Node modules
+node_modules/
+services/*/node_modules/
+shared/node_modules/
+
+# Build artifacts
+dist/
+build/
+*.log
