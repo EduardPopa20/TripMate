@@ -1,18 +1,19 @@
 FROM node:18-alpine
 
-WORKDIR /app
+WORKDIR /
 
-COPY package*.json ./
+COPY shared/ /shared/
 
-RUN npm ci --only=production
+WORKDIR /services/weather-service
 
-COPY . .
+COPY services/weather-service/package*.json ./
 
-COPY ../../shared /app/shared
+RUN npm install --production
+
+COPY services/weather-service/ .
 
 EXPOSE 3004
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3004/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+WORKDIR /services/weather-service
 
-CMD ["node", "index.js"]
+CMD ["npm", "start"]

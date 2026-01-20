@@ -9,14 +9,7 @@ const {
 } = require('../controllers/tripController');
 const authMiddleware = require('../middleware/authMiddleware');
 
-router.use(authMiddleware);
-
-router.post('/trips', createTrip);
-router.get('/trips', getAllTrips);
-router.get('/trips/:id', getTripById);
-router.put('/trips/:id', updateTrip);
-router.delete('/trips/:id', deleteTrip);
-
+// Health check - NO AUTH REQUIRED
 router.get('/health', (req, res) => {
   res.json({
     service: 'trip-service',
@@ -25,5 +18,14 @@ router.get('/health', (req, res) => {
     uptime: process.uptime()
   });
 });
+
+// Apply auth middleware to all routes below
+router.use(authMiddleware);
+
+router.post('/trips', createTrip);
+router.get('/trips', getAllTrips);
+router.get('/trips/:id', getTripById);
+router.put('/trips/:id', updateTrip);
+router.delete('/trips/:id', deleteTrip);
 
 module.exports = router;

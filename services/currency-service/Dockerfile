@@ -1,18 +1,19 @@
 FROM node:18-alpine
 
-WORKDIR /app
+WORKDIR /
 
-COPY package*.json ./
+COPY shared/ /shared/
 
-RUN npm ci --only=production
+WORKDIR /services/currency-service
 
-COPY . .
+COPY services/currency-service/package*.json ./
 
-COPY ../../shared /app/shared
+RUN npm install --production
+
+COPY services/currency-service/ .
 
 EXPOSE 3006
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3006/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+WORKDIR /services/currency-service
 
-CMD ["node", "index.js"]
+CMD ["npm", "start"]
